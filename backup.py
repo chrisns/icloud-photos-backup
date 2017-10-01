@@ -8,6 +8,7 @@ from datetime import datetime
 import pytz
 import os
 from pyicloud import PyiCloudService
+from tqdm import tqdm
 
 # For retrying connection after timeouts and errors
 MAX_RETRIES = 5
@@ -54,7 +55,9 @@ def backup(username, password, from_date, to_date):
         if not click.confirm("No date filtered specified, will download all photos?"):
             return
 
-    for photo in all_photos:
+    progress_bar = tqdm(all_photos)
+
+    for photo in progress_bar:
         for _ in range(MAX_RETRIES):
             try:
                 if (from_date is not None and photo.created < from_date) or (to_date is not None and photo.created > to_date):
@@ -72,19 +75,19 @@ def backup(username, password, from_date, to_date):
 
                 download_url = photo.download('original')
 
+                progress_bar.set_description("Downloading %s" % filename)
+
                 if download_url:
                     with open(download_path, 'wb') as file:
                         for chunk in download_url.iter_content(chunk_size=1024):
                             if chunk:
                                 file.write(chunk)
-                
-                print("downloaded %s" % (download_url))
-
-                return
 
             except (requests.exceptions.ConnectionError, socket.timeout):
+                tqdm.write('Connection failed, retrying after %d seconds...' % WAIT_SECONDS)
                 time.sleep(WAIT_SECONDS)
-    return
+    
+    progress_bar.close()
 
 def authenticate(username, password):
     """attempt to authenticate user using provided credentials"""
