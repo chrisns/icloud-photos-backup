@@ -54,8 +54,14 @@ def backup(username, password, from_date, to_date):
     if from_date is None and to_date is None:
         if not click.confirm("No date filtered specified, will download all photos?"):
             return
+    else: 
+        print("Filtering photos that is not within specified range, this can take some time...")
 
-    progress_bar = tqdm(all_photos)
+    # this could be very memory heavy, to store all photos in-memory instead of using a generator. 
+    # to greatly speed up this, we could fork https://github.com/picklepete/pyicloud/blob/master/pyicloud/services/photos.py#L335 to allow us to inject a query-filter to query for photos only within the date range
+    # we can reduce the queries needed from O(n) -> O(1) 
+    filtered_photos = [photo for photo in all_photos if (from_date is None or photo.created.date() >= from_date) and (to_date is None or photo.created.date() <= to_date)]
+    progress_bar = tqdm(filtered_photos)
 
     for photo in progress_bar:
         for _ in range(MAX_RETRIES):
