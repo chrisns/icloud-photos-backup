@@ -21,7 +21,7 @@ def validate_date(ctx, param, value):
 
     if re.match('(1|2)[0-9]{3}-(0|1)[0-9]-[0-3][0-9]', value) == None:
         raise click.BadParameter('Invalid date format, should follow YYYY-MM-DD (ex: 1984-11-23)')
-    return pytz.utc.localize(datetime.strptime(value, '%Y-%m-%d'))
+    return pytz.utc.localize(datetime.strptime(value, '%Y-%m-%d')).date()
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.command(context_settings=CONTEXT_SETTINGS, options_metavar='<options>')
@@ -60,8 +60,10 @@ def backup(username, password, from_date, to_date):
     for photo in progress_bar:
         for _ in range(MAX_RETRIES):
             try:
-                if (from_date is not None and photo.created < from_date) or (to_date is not None and photo.created > to_date):
-                    print("skipped", photo.created)
+                created = photo.created.date()
+
+                if (from_date is not None and created < from_date) or (to_date is not None and created > to_date):
+                    print("skipped", created)
                     continue
 
                 date_path = '{:%Y-%m}'.format(photo.created) # store files in folders grouped by year + month.
