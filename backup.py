@@ -48,7 +48,7 @@ def backup(username, password, from_date, to_date):
     print("Looking up all photos...")
 
     all_photos = icloud.photos.all
-    
+        
     print("Found (%s) total photos" % (len(all_photos)))
 
     if from_date is None and to_date is None:
@@ -73,7 +73,7 @@ def backup(username, password, from_date, to_date):
                     continue
 
                 date_path = '{:%Y-%m}'.format(photo.created) # store files in folders grouped by year + month.
-                download_dir = os.path.join(BACKUP_FOLDER, date_path)
+                download_dir = os.path.join(BACKUP_FOLDER, username, date_path)
                 
                 if not os.path.exists(download_dir):
                     os.makedirs(download_dir)
