@@ -10,6 +10,7 @@ import os
 from pyicloud.services.photos import PhotoAlbum
 from pyicloud import PyiCloudService
 from tqdm import tqdm
+import concurrent.futures
 
 # For retrying connection after timeouts and errors
 MAX_RETRIES = 3
@@ -84,41 +85,45 @@ def backup(username, password, from_date, to_date):
     print("Finished filtering photos, will begin to download {0} photos".format(len(filtered_photos)))
     
     progress_bar = tqdm(filtered_photos, desc="Downloading", bar_format="{l_bar}{bar}|{n_fmt}/{total_fmt}")
-    failed_photos = []
+    # failed_photos = []
 
-    for photo in progress_bar:
-        for attempt in range(MAX_RETRIES):
-            try:
-                date_path = '{:%Y-%m}'.format(photo.created) # store files in folders grouped by year + month.
-                download_dir = os.path.join(BACKUP_FOLDER, username, date_path)
-                
-                if not os.path.exists(download_dir):
-                    os.makedirs(download_dir)
-                
-                filename = photo.filename.encode('utf-8').decode('ascii', 'ignore')
-                download_path = os.path.join(download_dir, filename)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        futures = {executor.submit(download_photo, photo, username) for photo in filtered_photos}
+        concurrent.futures.wait(futures)
 
-                download_url = photo.download('original')
-                photo_bar = tqdm(total=photo.size, unit_divisor=1024, unit='B', unit_scale=True, leave=False, desc="{0}".format(filename), bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} {rate_fmt}")
-
-                if download_url:
-                    with open(download_path, 'wb') as file:
-                        for chunk in download_url.iter_content(chunk_size=1024):
-                            if chunk:
-                                photo_bar.update(len(chunk))
-                                file.write(chunk)
-                
-                photo_bar.close()
-                break
-
-            except (requests.exceptions.ConnectionError, socket.timeout):
-                if (attempt + 1) == MAX_RETRIES:
-                    failed_photos.append(photo)
-
-                tqdm.write('Connection failed, retrying after %d seconds...' % WAIT_SECONDS)
-                time.sleep(WAIT_SECONDS)
-    
     progress_bar.close()
+
+def download_photo(photo, username):
+    for attempt in range(MAX_RETRIES):
+        try:
+            date_path = '{:%Y-%m}'.format(photo.created) # store files in folders grouped by year + month.
+            download_dir = os.path.join(BACKUP_FOLDER, username, date_path)
+            
+            if not os.path.exists(download_dir):
+                os.makedirs(download_dir)
+            
+            filename = photo.filename.encode('utf-8').decode('ascii', 'ignore')
+            download_path = os.path.join(download_dir, filename)
+
+            download_url = photo.download('original')
+            photo_bar = tqdm(total=photo.size, unit_divisor=1024, unit='B', unit_scale=True, leave=False, desc="{0}".format(filename), bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} {rate_fmt}")
+
+            if download_url:
+                with open(download_path, 'wb') as file:
+                    for chunk in download_url.iter_content(chunk_size=1024):
+                        if chunk:
+                            photo_bar.update(len(chunk))
+                            file.write(chunk)
+            
+            photo_bar.close()
+            break
+
+        except (requests.exceptions.ConnectionError, socket.timeout):
+            # if (attempt + 1) == MAX_RETRIES:
+                # failed_photos.append(photo)
+
+            tqdm.write('Connection failed, retrying after %d seconds...' % WAIT_SECONDS)
+            time.sleep(WAIT_SECONDS)
 
 def authenticate(username, password):
     """attempt to authenticate user using provided credentials"""
@@ -126,21 +131,21 @@ def authenticate(username, password):
     icloud = PyiCloudService(username, password)
 
     if icloud.requires_2sa:
-        print "Two-factor authentication required. Your trusted devices are:"
+        print("Two-factor authentication required. Your trusted devices are:")
 
         devices = icloud.trusted_devices
         for i, device in enumerate(devices):
-            print "  %s: %s" % (i, device.get('deviceName', "SMS to %s" % device.get('phoneNumber')))
+            print("  {0}: {1}".format(i, device.get('deviceName', "SMS to %s" % device.get('phoneNumber'))))
 
         device = click.prompt('Which device would you like to use?', default=0)
         device = devices[device]
         if not icloud.send_verification_code(device):
-            print "Failed to send verification code"
+            print("Failed to send verification code")
             sys.exit(1)
 
         code = click.prompt('Please enter validation code')
         if not icloud.validate_verification_code(device, code):
-            print "Failed to verify verification code"
+            print("Failed to verify verification code")
             sys.exit(1)
 
     return icloud
