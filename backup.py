@@ -83,7 +83,7 @@ def backup(username, password, from_date, to_date):
 
     print("Finished filtering photos, will begin to download {0} photos".format(len(filtered_photos)))
     
-    progress_bar = tqdm(filtered_photos)
+    progress_bar = tqdm(filtered_photos, desc="Downloading", bar_format="{l_bar}{bar}|{n_fmt}/{total_fmt}")
     failed_photos = []
 
     for photo in progress_bar:
@@ -99,17 +99,16 @@ def backup(username, password, from_date, to_date):
                 download_path = os.path.join(download_dir, filename)
 
                 download_url = photo.download('original')
-
-                print("Downloaded {0} size: {1} mb".format(photo.id, photo.size / 1024))
-
-                progress_bar.set_description("Downloading %s" % filename)
+                photo_bar = tqdm(total=photo.size, unit_divisor=1024, unit='B', unit_scale=True, leave=False, desc="{0}".format(filename), bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} {rate_fmt}")
 
                 if download_url:
                     with open(download_path, 'wb') as file:
                         for chunk in download_url.iter_content(chunk_size=1024):
                             if chunk:
+                                photo_bar.update(len(chunk))
                                 file.write(chunk)
                 
+                photo_bar.close()
                 break
 
             except (requests.exceptions.ConnectionError, socket.timeout):
