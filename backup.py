@@ -7,11 +7,12 @@ import time
 from datetime import datetime
 import pytz
 import os
+from pyicloud.services.photos import PhotoAlbum
 from pyicloud import PyiCloudService
 from tqdm import tqdm
 
 # For retrying connection after timeouts and errors
-MAX_RETRIES = 5
+MAX_RETRIES = 3
 WAIT_SECONDS = 5
 BACKUP_FOLDER = os.path.join(os.getcwd(), 'backup')
 
@@ -45,11 +46,14 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 def backup(username, password, from_date, to_date):
     icloud = authenticate(username, password)
 
-    print("Looking up all photos...")
+    album = icloud.photos.albums["All Photos"]
 
-    all_photos = icloud.photos.all
-        
-    print("Found (%s) total photos" % (len(all_photos)))
+    # sort by asset-date instead of added-date
+    album.obj_type = "CPLAssetByAssetDate"
+    album.list_type = "CPLAssetAndMasterByAddedDate"
+    album.page_size = 100 # seems to be capped at 100.
+
+    print("Album '{0}' contains a total of {1} photos".format(album.title, len(album)))
 
     if from_date is None and to_date is None:
         if not click.confirm("No date filtered specified, will download all photos?"):
@@ -57,21 +61,34 @@ def backup(username, password, from_date, to_date):
     else: 
         print("Filtering photos that is not within specified range, this can take some time...")
 
-    # this could be very memory heavy, to store all photos in-memory instead of using a generator. 
-    # to greatly speed up this, we could fork https://github.com/picklepete/pyicloud/blob/master/pyicloud/services/photos.py#L335 to allow us to inject a query-filter to query for photos only within the date range
-    # we can reduce the queries needed from O(n) -> O(1) 
-    filtered_photos = [photo for photo in all_photos if (from_date is None or photo.created.date() >= from_date) and (to_date is None or photo.created.date() <= to_date)]
+    # # this could be very memory heavy, to store all photos in-memory instead of using a generator. 
+    # # to greatly speed up this, we could fork https://github.com/picklepete/pyicloud/blob/master/pyicloud/services/photos.py#L335 to allow us to inject a query-filter to query for photos only within the date range
+    # # we can reduce the queries needed from O(n) -> O(1) 
+    # filtered_photos = [photo for photo in album.photos if (from_date is None or photo.created.date() >= from_date) and (to_date is None or photo.created.date() <= to_date)]
+    # progress_bar = tqdm(filtered_photos)
+    filtered_photos = []
+
+    # before we can rely heavy on the photos are sorted DESC by asset_date we can create these guards.
+    for photo in album.photos:
+        if to_date is not None and photo.created.date() > to_date:
+            # skip photos untill photos are older than our 'to_date'
+            continue
+
+        if from_date is not None and photo.created.date() < from_date:
+            # break out when we begin to receive photos created earlier than our 'from_date'
+            break
+
+        filtered_photos.append(photo)
+        print("id: {0}, name: {1} created: {2}, added: {3}".format(photo.id, photo.filename, photo.created, photo.added_date))
+
+    print("Finished filtering photos, will begin to download {0} photos".format(len(filtered_photos)))
+    
     progress_bar = tqdm(filtered_photos)
+    failed_photos = []
 
     for photo in progress_bar:
-        for _ in range(MAX_RETRIES):
+        for attempt in range(MAX_RETRIES):
             try:
-                created = photo.created.date()
-
-                if (from_date is not None and created < from_date) or (to_date is not None and created > to_date):
-                    print("skipped", created)
-                    continue
-
                 date_path = '{:%Y-%m}'.format(photo.created) # store files in folders grouped by year + month.
                 download_dir = os.path.join(BACKUP_FOLDER, username, date_path)
                 
@@ -83,6 +100,8 @@ def backup(username, password, from_date, to_date):
 
                 download_url = photo.download('original')
 
+                print("Downloaded {0} size: {1} mb".format(photo.id, photo.size / 1024))
+
                 progress_bar.set_description("Downloading %s" % filename)
 
                 if download_url:
@@ -90,8 +109,13 @@ def backup(username, password, from_date, to_date):
                         for chunk in download_url.iter_content(chunk_size=1024):
                             if chunk:
                                 file.write(chunk)
+                
+                break
 
             except (requests.exceptions.ConnectionError, socket.timeout):
+                if (attempt + 1) == MAX_RETRIES:
+                    failed_photos.append(photo)
+
                 tqdm.write('Connection failed, retrying after %d seconds...' % WAIT_SECONDS)
                 time.sleep(WAIT_SECONDS)
     
