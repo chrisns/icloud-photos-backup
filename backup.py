@@ -13,6 +13,7 @@ from tqdm import tqdm
 import concurrent.futures
 
 # For retrying connection after timeouts and errors
+MAX_CONCURRENT_DOWNLOADS = 6
 MAX_RETRIES = 3
 WAIT_SECONDS = 5
 BACKUP_FOLDER = os.path.join(os.getcwd(), 'backup')
@@ -37,11 +38,11 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
               prompt='iCloud password',
               hide_input=True)
 @click.option('--from-date',
-              help='specifiy a date YYYY-mm-dd to begin downloading images from',
+              help='specifiy a date YYYY-mm-dd to begin downloading images from, leaving it out will result in downloading all images',
               callback=validate_date,
               metavar='<date>')
 @click.option('--to-date',
-              help='Specifiy a date YYYY-mm-dd to begin downloading images to',
+              help='Specifiy a date YYYY-mm-dd to begin downloading images to, leaving it out will result in downloading images up till today',
               callback=validate_date,
               metavar='<date>')
 def backup(username, password, from_date, to_date):
@@ -62,11 +63,9 @@ def backup(username, password, from_date, to_date):
     else: 
         print("Filtering photos that is not within specified range, this can take some time...")
 
-    # # this could be very memory heavy, to store all photos in-memory instead of using a generator. 
-    # # to greatly speed up this, we could fork https://github.com/picklepete/pyicloud/blob/master/pyicloud/services/photos.py#L335 to allow us to inject a query-filter to query for photos only within the date range
-    # # we can reduce the queries needed from O(n) -> O(1) 
-    # filtered_photos = [photo for photo in album.photos if (from_date is None or photo.created.date() >= from_date) and (to_date is None or photo.created.date() <= to_date)]
-    # progress_bar = tqdm(filtered_photos)
+    # this could be very memory heavy, to store all photos in-memory instead of using a generator. 
+    # to greatly speed up this, we could fork https://github.com/picklepete/pyicloud/blob/master/pyicloud/services/photos.py#L335 to allow us to inject a query-filter to query for photos only within the date range
+    # we can reduce the queries needed from O(n) -> O(1) 
     filtered_photos = []
 
     # before we can rely heavy on the photos are sorted DESC by asset_date we can create these guards.
@@ -84,46 +83,60 @@ def backup(username, password, from_date, to_date):
 
     print("Finished filtering photos, will begin to download {0} photos".format(len(filtered_photos)))
     
-    progress_bar = tqdm(filtered_photos, desc="Downloading", bar_format="{l_bar}{bar}|{n_fmt}/{total_fmt}")
-    # failed_photos = []
+    progress_bar = tqdm(total=len(filtered_photos), desc="Downloading", bar_format="{l_bar}{bar}|{n_fmt}/{total_fmt}")
+    failed_photos = []
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-        futures = {executor.submit(download_photo, photo, username) for photo in filtered_photos}
+    def download_photo(photo):
+        photo_bar = tqdm(total=photo.size, unit_divisor=1024, unit='B', unit_scale=True, leave=False, bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} {rate_fmt}")
+
+        for attempt in range(MAX_RETRIES):
+            try:
+                photo_bar.set_description(photo.filename)
+                photo_bar.moveto(0)
+
+                date_path = '{:%Y-%m}'.format(photo.created) # store files in folders grouped by year + month.
+                download_dir = os.path.join(BACKUP_FOLDER, username, date_path)
+                
+                if not os.path.exists(download_dir):
+                    os.makedirs(download_dir)
+                
+                filename = photo.filename.encode('utf-8').decode('ascii', 'ignore')
+                download_path = os.path.join(download_dir, filename)
+                download_url = photo.download('original')
+                
+                if download_url:
+                    with open(download_path, 'wb') as file:
+                        for chunk in download_url.iter_content(chunk_size=1024):
+                            if chunk:
+                                photo_bar.update(len(chunk))
+                                file.write(chunk)
+
+                break
+
+            except (requests.exceptions.ConnectionError, socket.timeout):
+                if (attempt + 1) == MAX_RETRIES:
+                    failed_photos.append(photo)
+
+                tqdm.write('Connection failed, retrying after %d seconds...' % WAIT_SECONDS)
+                time.sleep(WAIT_SECONDS)
+
+        photo_bar.close()
+        progress_bar.update(1)
+
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_CONCURRENT_DOWNLOADS) as executor:
+        futures = {executor.submit(download_photo, photo) for photo in filtered_photos}
         concurrent.futures.wait(futures)
 
     progress_bar.close()
+    
+    print("Finished downloaded {0} photos, with {1} failed".format(len(filtered_photos), len(failed_photos)))
+    
+    if failed_photos:
+        print("-----------------------------------------------")
+        for photo in failed_photos:
+            print(" {0}".format(photo.filename))
 
-def download_photo(photo, username):
-    for attempt in range(MAX_RETRIES):
-        try:
-            date_path = '{:%Y-%m}'.format(photo.created) # store files in folders grouped by year + month.
-            download_dir = os.path.join(BACKUP_FOLDER, username, date_path)
-            
-            if not os.path.exists(download_dir):
-                os.makedirs(download_dir)
-            
-            filename = photo.filename.encode('utf-8').decode('ascii', 'ignore')
-            download_path = os.path.join(download_dir, filename)
-
-            download_url = photo.download('original')
-            photo_bar = tqdm(total=photo.size, unit_divisor=1024, unit='B', unit_scale=True, leave=False, desc="{0}".format(filename), bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} {rate_fmt}")
-
-            if download_url:
-                with open(download_path, 'wb') as file:
-                    for chunk in download_url.iter_content(chunk_size=1024):
-                        if chunk:
-                            photo_bar.update(len(chunk))
-                            file.write(chunk)
-            
-            photo_bar.close()
-            break
-
-        except (requests.exceptions.ConnectionError, socket.timeout):
-            # if (attempt + 1) == MAX_RETRIES:
-                # failed_photos.append(photo)
-
-            tqdm.write('Connection failed, retrying after %d seconds...' % WAIT_SECONDS)
-            time.sleep(WAIT_SECONDS)
 
 def authenticate(username, password):
     """attempt to authenticate user using provided credentials"""
