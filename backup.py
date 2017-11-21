@@ -13,7 +13,7 @@ from tqdm import tqdm
 import concurrent.futures
 
 # For retrying connection after timeouts and errors
-MAX_CONCURRENT_DOWNLOADS = 6
+MAX_CONCURRENT_DOWNLOADS = 8
 MAX_RETRIES = 3
 WAIT_SECONDS = 5
 BACKUP_FOLDER = os.path.join(os.getcwd(), 'backup')
@@ -116,8 +116,6 @@ def backup(username, password, from_date, to_date):
             except (requests.exceptions.ConnectionError, socket.timeout):
                 if (attempt + 1) == MAX_RETRIES:
                     failed_photos.append(photo)
-
-                tqdm.write('Connection failed, retrying after %d seconds...' % WAIT_SECONDS)
                 time.sleep(WAIT_SECONDS)
 
         photo_bar.close()
