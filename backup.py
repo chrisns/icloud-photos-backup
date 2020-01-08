@@ -82,6 +82,14 @@ def backup(username, password, from_date, to_date):
             # break out when we begin to receive photos created earlier than our 'from_date'
             break
 
+        date_path = '{:%Y-%m}'.format(photo.created) # store files in folders grouped by year + month.
+        photo.download_dir = os.path.join(BACKUP_FOLDER, username, date_path)
+        filename = photo.filename.encode('utf-8').decode('ascii', 'ignore')
+        photo.download_path = os.path.join(photo.download_dir, filename)
+        if os.path.isfile(photo.download_path):
+            #skip when we've already fetched the photo
+            continue
+
         filtered_photos.append(photo)
         print("id: {0}, name: {1} created: {2}, added: {3}".format(photo.id, photo.filename, photo.created, photo.added_date))
 
@@ -98,18 +106,13 @@ def backup(username, password, from_date, to_date):
                 photo_bar.set_description(photo.filename)
                 photo_bar.moveto(0)
 
-                date_path = '{:%Y-%m}'.format(photo.created) # store files in folders grouped by year + month.
-                download_dir = os.path.join(BACKUP_FOLDER, username, date_path)
+                if not os.path.exists(photo.download_dir):
+                    os.makedirs(photo.download_dir)
                 
-                if not os.path.exists(download_dir):
-                    os.makedirs(download_dir)
-                
-                filename = photo.filename.encode('utf-8').decode('ascii', 'ignore')
-                download_path = os.path.join(download_dir, filename)
                 download_url = photo.download('original')
                 
                 if download_url:
-                    with open(download_path, 'wb') as file:
+                    with open(photo.download_path, 'wb') as file:
                         for chunk in download_url.iter_content(chunk_size=1024):
                             if chunk:
                                 photo_bar.update(len(chunk))
