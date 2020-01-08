@@ -1,6 +1,15 @@
-click
-python-dateutil
-requests
 git+https://github.com/tqdm/tqdm.git@master#egg=tqdm
-# no release has been made for the repo that includes: https://github.com/picklepete/pyicloud/commit/4daf035689b25191478486188bc84ed63a7b9482 which is needed.
-git+git://github.com/picklepete/pyicloud.git#9bb6d750662ce24c8febc94807ddbdcdf3cadaa2
+git+git://github.com/picklepete/pyicloud.git@9bb6d750662ce24c8febc94807ddbdcdf3cadaa2#egg=pyicloud
+certifi==2019.11.28
+chardet==3.0.4
+Click==7.0
+future==0.18.2
+idna==2.8
+keyring==8.7
+keyrings.alt==1.3
+python-dateutil==2.8.1
+pytz==2019.3
+requests==2.22.0
+six==1.13.0
+tzlocal==2.0.0
+urllib3==1.25.7
