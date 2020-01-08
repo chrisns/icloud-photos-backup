@@ -31,19 +31,23 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--username',
               help='Your iCloud username or email address',
               metavar='<username>',
+              envvar='USERNAME',
               prompt='iCloud username/email')
 @click.option('--password',
               help='Your iCloud password',
               metavar='<password>',
+              envvar='PASSWORD',
               prompt='iCloud password',
               hide_input=True)
 @click.option('--from-date',
               help='specifiy a date YYYY-mm-dd to begin downloading images from, leaving it out will result in downloading all images',
               callback=validate_date,
+              envvar='FROM_DATE',
               metavar='<date>')
 @click.option('--to-date',
               help='Specifiy a date YYYY-mm-dd to begin downloading images to, leaving it out will result in downloading images up till today',
               callback=validate_date,
+              envvar='TO_DATE',
               metavar='<date>')
 def backup(username, password, from_date, to_date):
     icloud = authenticate(username, password)
