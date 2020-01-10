@@ -2,6 +2,8 @@ import click
 import re
 import sys
 import socket
+import string
+import unicodedata
 import requests
 import time
 from datetime import datetime
@@ -17,6 +19,16 @@ MAX_CONCURRENT_DOWNLOADS = 8
 MAX_RETRIES = 3
 WAIT_SECONDS = 5
 BACKUP_FOLDER = os.path.join(os.getcwd(), 'backup')
+
+
+def clean_filename(filename):
+    whitelist=valid_filename_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
+    
+    # keep only valid ascii chars
+    cleaned_filename = unicodedata.normalize('NFKD', filename).encode('ASCII', 'ignore').decode()
+    
+    cleaned_filename = ''.join(c for c in cleaned_filename if c in whitelist)
+    return cleaned_filename[:255]
 
 def validate_date(ctx, param, value):
     if not value:
@@ -78,7 +90,7 @@ def backup(username, password, from_date, to_date):
 
         date_path = '{:%Y-%m}'.format(photo.created) # store files in folders grouped by year + month.
         photo.download_dir = os.path.join(BACKUP_FOLDER, username, date_path)
-        filename = photo.id + photo.filename.encode('utf-8').decode('ascii', 'ignore')
+        filename = clean_filename(photo.id) + photo.filename.encode('utf-8').decode('ascii', 'ignore')
         photo.download_path = os.path.join(photo.download_dir, filename)
         if os.path.isfile(photo.download_path):
             #skip when we've already fetched the photo
