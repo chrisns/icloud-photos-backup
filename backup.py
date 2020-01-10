@@ -78,8 +78,11 @@ def backup(username, password, from_date, to_date):
     # we can reduce the queries needed from O(n) -> O(1) 
     filtered_photos = []
 
+    photo_filter_bar = tqdm(total=len(album), unit="photos", desc="Filter")
+
     # before we can rely heavy on the photos are sorted DESC by asset_date we can create these guards.
     for photo in album.photos:
+        photo_filter_bar.update()
         if to_date is not None and photo.created.date() > to_date:
             # skip photos untill photos are older than our 'to_date'
             continue
@@ -97,20 +100,18 @@ def backup(username, password, from_date, to_date):
             continue
 
         filtered_photos.append(photo)
-        print("id: {0}, name: {1} created: {2}, added: {3}".format(photo.id, photo.filename, photo.created, photo.added_date))
+        # print("id: {0}, name: {1} created: {2}, added: {3}, path: {4}".format(photo.id, photo.filename, photo.created, photo.added_date, photo.download_path))
 
+    photo_filter_bar.close()
     print("Finished filtering photos, will begin to download {0} photos".format(len(filtered_photos)))
     
     progress_bar = tqdm(total=len(filtered_photos), desc="Downloading", bar_format="{l_bar}{bar}|{n_fmt}/{total_fmt}")
     failed_photos = []
 
     def download_photo(photo):
-        photo_bar = tqdm(total=photo.size, unit_divisor=1024, unit='B', unit_scale=True, leave=False, bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} {rate_fmt}")
 
         for attempt in range(MAX_RETRIES):
             try:
-                photo_bar.set_description(photo.filename)
-                photo_bar.moveto(0)
 
                 if not os.path.exists(photo.download_dir):
                     os.makedirs(photo.download_dir)
@@ -121,7 +122,6 @@ def backup(username, password, from_date, to_date):
                     with open(photo.download_path, 'wb') as file:
                         for chunk in download_url.iter_content(chunk_size=1024):
                             if chunk:
-                                photo_bar.update(len(chunk))
                                 file.write(chunk)
 
                 break
@@ -131,7 +131,6 @@ def backup(username, password, from_date, to_date):
                     failed_photos.append(photo)
                 time.sleep(WAIT_SECONDS)
 
-        photo_bar.close()
         progress_bar.update(1)
 
 
