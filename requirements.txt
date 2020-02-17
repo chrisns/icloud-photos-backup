@@ -4,7 +4,7 @@ certifi==2019.11.28
 chardet==3.0.4
 Click==7.0
 future==0.18.2
-idna==2.8
+idna==2.9
 keyring==8.7
 keyrings.alt==3.4.0
 python-dateutil==2.8.1
