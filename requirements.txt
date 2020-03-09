@@ -2,7 +2,7 @@ git+https://github.com/tqdm/tqdm.git@master#egg=tqdm
 git+git://github.com/picklepete/pyicloud.git@9bb6d750662ce24c8febc94807ddbdcdf3cadaa2#egg=pyicloud
 certifi==2019.11.28
 chardet==3.0.4
-Click==7.0
+Click==7.1.1
 future==0.18.2
 idna==2.9
 keyring==8.7
