@@ -6,7 +6,7 @@ Click==7.1.2
 future==0.18.2
 idna==2.10
 keyring==8.7
-keyrings.alt==3.4.0
+keyrings.alt==3.5.2
 python-dateutil==2.8.1
 pytz==2020.1
 requests==2.24.0
