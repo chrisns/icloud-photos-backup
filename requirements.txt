@@ -7,7 +7,7 @@ future==0.18.2
 idna==2.10
 jeepney==0.6.0
 keyring==9.3.1
-keyrings.alt==3.2.0
+keyrings.alt==4.0.2
 pycparser==2.20
 pyicloud==0.10.2
 python-dateutil==2.8.1
