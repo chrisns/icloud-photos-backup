@@ -74,7 +74,7 @@ def backup(username, password, from_date, to_date):
     failed_photos = []
     downloaded = 0
 
-    progress_bar = tqdm(total=len(album), desc="Downloading", bar_format="{l_bar}{bar}|{n_fmt}/{total_fmt}")
+    progress_bar = tqdm(total=len(album), desc="Downloading", position=0, bar_format="{l_bar}{bar}|{n_fmt}/{total_fmt}")
 
     def download_photo(photo):
         nonlocal downloaded
@@ -87,13 +87,17 @@ def backup(username, password, from_date, to_date):
                 os.makedirs(photo.download_dir)
             
             download_url = photo.download('original')
+            # size = photo.size()
             
             if download_url:
+                download_bar = tqdm(position=1, unit="byte", desc=photo.download_path, unit_scale=True, bar_format="{l_bar}|{rate_fmt}|{n_fmt}|{elapsed}")
                 with open(photo.download_path, 'wb') as file:
                     for chunk in download_url.iter_content(chunk_size=1024):
                         if chunk:
+                            download_bar.update(1024)
                             file.write(chunk)
                     file.close()
+                download_bar.close()
 
 
         except (requests.exceptions.ConnectionError, socket.timeout):
@@ -176,5 +180,5 @@ def authenticate(username, password):
     return api
 
 
-if __name__ == '__main__':
-    backup()
+# if __name__ == '__main__':
+backup()
