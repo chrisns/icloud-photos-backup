@@ -18,7 +18,7 @@ import concurrent.futures
 MAX_CONCURRENT_DOWNLOADS = 8
 MAX_RETRIES = 3
 WAIT_SECONDS = 5
-BACKUP_FOLDER = os.path.join(os.getcwd(), 'backup')
+BACKUP_FOLDER = os.path.join(os.getcwd(), 'photos')
 
 
 def clean_filename(filename):
@@ -45,6 +45,12 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
               metavar='<username>',
               envvar='USERNAME',
               prompt='iCloud username/email')
+@click.option('--password',
+              help='Your iCloud password',
+              metavar='<password>',
+              envvar='PASSWORD',
+              prompt='iCloud password',
+              hide_input=True)
 @click.option('--from-date',
               help='specifiy a date YYYY-mm-dd to begin downloading images from, leaving it out will result in downloading all images',
               callback=validate_date,
@@ -55,8 +61,8 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
               callback=validate_date,
               envvar='TO_DATE',
               metavar='<date>')
-def backup(username, from_date, to_date):
-    icloud = PyiCloudService(username)
+def backup(username, password, from_date, to_date):
+    icloud = authenticate(username, password)
 
     album = icloud.photos.albums["All Photos"]
 
@@ -140,6 +146,51 @@ def backup(username, from_date, to_date):
         print("-----------------------------------------------")
         for photo in failed_photos:
             print(" {0}".format(photo.filename))
+
+
+def authenticate(username, password):
+    """attempt to authenticate user using provided credentials"""
+
+    api = PyiCloudService(username, password)
+
+    if api.requires_2fa:
+        print("Two-factor authentication required.")
+        code = input("Enter the code you received of one of your approved devices: ")
+        result = api.validate_2fa_code(code)
+        print("Code validation result: %s" % result)
+
+        if not result:
+            print("Failed to verify security code")
+            sys.exit(1)
+
+        if not api.is_trusted_session:
+            print("Session is not trusted. Requesting trust...")
+            result = api.trust_session()
+            print("Session trust result %s" % result)
+
+            if not result:
+                print("Failed to request trust. You will likely be prompted for the code again in the coming weeks")
+    elif api.requires_2sa:
+        import click
+        print("Two-step authentication required. Your trusted devices are:")
+
+        devices = api.trusted_devices
+        for i, device in enumerate(devices):
+            print("  %s: %s" % (i, device.get('deviceName',
+                "SMS to %s" % device.get('phoneNumber'))))
+
+        device = click.prompt('Which device would you like to use?', default=0)
+        device = devices[device]
+        if not api.send_verification_code(device):
+            print("Failed to send verification code")
+            sys.exit(1)
+
+        code = click.prompt('Please enter validation code')
+        if not api.validate_verification_code(device, code):
+            print("Failed to verify verification code")
+            sys.exit(1)
+
+    return api
 
 
 if __name__ == '__main__':
