@@ -11,6 +11,6 @@ FROM python:3.9.5
 RUN adduser -h /app -u 1000 -D app
 COPY --from=build /app /app
 ADD backup.py /app
-USER app
+USER 1000
 
 ENTRYPOINT [ "python", "/app/backup.py" ] 
