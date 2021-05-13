@@ -27,4 +27,4 @@ RUN useradd \
 USER 1000
 
 
-CMD /app/backup.py
+ENTRYPOINT [ "python", "/app/backup.py"]
