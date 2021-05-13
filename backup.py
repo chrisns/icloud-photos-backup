@@ -12,12 +12,7 @@ import os
 from pyicloud.services.photos import PhotoAlbum
 from pyicloud import PyiCloudService
 from tqdm import tqdm
-import concurrent.futures
 
-# For retrying connection after timeouts and errors
-MAX_CONCURRENT_DOWNLOADS = 8
-MAX_RETRIES = 3
-WAIT_SECONDS = 5
 BACKUP_FOLDER = os.path.join(os.getcwd(), 'photos')
 
 
@@ -76,13 +71,38 @@ def backup(username, password, from_date, to_date):
     # this could be very memory heavy, to store all photos in-memory instead of using a generator. 
     # to greatly speed up this, we could fork https://github.com/picklepete/pyicloud/blob/master/pyicloud/services/photos.py#L335 to allow us to inject a query-filter to query for photos only within the date range
     # we can reduce the queries needed from O(n) -> O(1) 
-    filtered_photos = []
+    failed_photos = []
+    downloaded = 0
 
-    photo_filter_bar = tqdm(total=len(album), unit="photos", desc="Filter")
+    progress_bar = tqdm(total=len(album), desc="Downloading", bar_format="{l_bar}{bar}|{n_fmt}/{total_fmt}")
+
+    def download_photo(photo):
+        nonlocal downloaded
+        nonlocal failed_photos
+        downloaded += 1
+
+        try:
+
+            if not os.path.exists(photo.download_dir):
+                os.makedirs(photo.download_dir)
+            
+            download_url = photo.download('original')
+            
+            if download_url:
+                with open(photo.download_path, 'wb') as file:
+                    for chunk in download_url.iter_content(chunk_size=1024):
+                        if chunk:
+                            file.write(chunk)
+                    file.close()
+
+
+        except (requests.exceptions.ConnectionError, socket.timeout):
+            failed_photos.append(photo)
+
 
     # before we can rely heavy on the photos are sorted DESC by asset_date we can create these guards.
     for photo in album.photos:
-        photo_filter_bar.update()
+        progress_bar.update()
         if to_date is not None and photo.created.date() > to_date:
             # skip photos untill photos are older than our 'to_date'
             continue
@@ -98,49 +118,12 @@ def backup(username, password, from_date, to_date):
         if os.path.isfile(photo.download_path):
             #skip when we've already fetched the photo
             continue
-
-        filtered_photos.append(photo)
-        # print("id: {0}, name: {1} created: {2}, added: {3}, path: {4}".format(photo.id, photo.filename, photo.created, photo.added_date, photo.download_path))
-
-    photo_filter_bar.close()
-    print("Finished filtering photos, will begin to download {0} photos".format(len(filtered_photos)))
-    
-    progress_bar = tqdm(total=len(filtered_photos), desc="Downloading", bar_format="{l_bar}{bar}|{n_fmt}/{total_fmt}")
-    failed_photos = []
-
-    def download_photo(photo):
-
-        for attempt in range(MAX_RETRIES):
-            try:
-
-                if not os.path.exists(photo.download_dir):
-                    os.makedirs(photo.download_dir)
-                
-                download_url = photo.download('original')
-                
-                if download_url:
-                    with open(photo.download_path, 'wb') as file:
-                        for chunk in download_url.iter_content(chunk_size=1024):
-                            if chunk:
-                                file.write(chunk)
-
-                break
-
-            except (requests.exceptions.ConnectionError, socket.timeout):
-                if (attempt + 1) == MAX_RETRIES:
-                    failed_photos.append(photo)
-                time.sleep(WAIT_SECONDS)
-
-        progress_bar.update(1)
-
-
-    with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_CONCURRENT_DOWNLOADS) as executor:
-        futures = {executor.submit(download_photo, photo) for photo in filtered_photos}
-        concurrent.futures.wait(futures)
+        
+        download_photo(photo)
 
     progress_bar.close()
     
-    print("Finished downloaded {0} photos, with {1} failed".format(len(filtered_photos), len(failed_photos)))
+    print("Finished downloaded {0} of {1} photos, with {2} failed".format(downloaded, len(album), len(failed_photos)))
     
     if failed_photos:
         print("-----------------------------------------------")
