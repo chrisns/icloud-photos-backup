@@ -1,11 +1,16 @@
-FROM python:3.8.6-alpine3.11
-RUN apk add --no-cache git
-
+FROM python:3.8.7 as build
 WORKDIR /app
-
 ADD requirements.txt ./
-RUN pip install -r requirements.txt
+RUN chown -R 1000 .
+USER 1000
+ENV HOME=/app
+RUN pip install --user --no-cache-dir -r requirements.txt
 
-ADD backup.py ./
 
-ENTRYPOINT [ "python", "backup.py" ] 
+FROM python:3.8.7-alpine
+RUN adduser -h /app -u 1000 -D app
+COPY --from=build /app /app
+ADD backup.py /app
+USER app
+
+ENTRYPOINT [ "python", "/app/backup.py" ] 
