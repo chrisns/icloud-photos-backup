@@ -8,6 +8,17 @@ However something got me worried, _what if_ I got infected with some ransomware 
 
 ## Usage
 
+### Get or renew a login session with 2FA
+
+docker run \
+ --rm -ti \
+ --name icloud-photo-backup-session
+-v `pwd`/session:/tmp/pyicloud \
+ ghcr.io/chrisns/icloud-photos-backup \
+ python /app/.local/bin/icloud --username xxx@mac.com
+
+### Run
+
 ```bash
 docker run \
   --rm -ti \

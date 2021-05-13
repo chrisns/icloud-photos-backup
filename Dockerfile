@@ -12,5 +12,6 @@ RUN adduser -h /app -u 1000 -D app
 COPY --from=build /app /app
 ADD backup.py /app
 USER 1000
+ENV HOME=/app
 
-ENTRYPOINT [ "python", "/app/backup.py" ] 
+CMD python /app/backup.py
