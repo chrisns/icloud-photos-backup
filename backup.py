@@ -45,12 +45,6 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
               metavar='<username>',
               envvar='USERNAME',
               prompt='iCloud username/email')
-@click.option('--password',
-              help='Your iCloud password',
-              metavar='<password>',
-              envvar='PASSWORD',
-              prompt='iCloud password',
-              hide_input=True)
 @click.option('--from-date',
               help='specifiy a date YYYY-mm-dd to begin downloading images from, leaving it out will result in downloading all images',
               callback=validate_date,
@@ -61,8 +55,8 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
               callback=validate_date,
               envvar='TO_DATE',
               metavar='<date>')
-def backup(username, password, from_date, to_date):
-    icloud = authenticate(username, password)
+def backup(username, from_date, to_date):
+    icloud = PyiCloudService(username)
 
     album = icloud.photos.albums["All Photos"]
 
@@ -146,32 +140,6 @@ def backup(username, password, from_date, to_date):
         print("-----------------------------------------------")
         for photo in failed_photos:
             print(" {0}".format(photo.filename))
-
-
-def authenticate(username, password):
-    """attempt to authenticate user using provided credentials"""
-
-    icloud = PyiCloudService(username, password)
-
-    if icloud.requires_2sa:
-        print("Two-factor authentication required. Your trusted devices are:")
-
-        devices = icloud.trusted_devices
-        for i, device in enumerate(devices):
-            print("  {0}: {1}".format(i, device.get('deviceName', "SMS to %s" % device.get('phoneNumber'))))
-
-        device = click.prompt('Which device would you like to use?', default=0)
-        device = devices[device]
-        if not icloud.send_verification_code(device):
-            print("Failed to send verification code")
-            sys.exit(1)
-
-        code = click.prompt('Please enter validation code')
-        if not icloud.validate_verification_code(device, code):
-            print("Failed to verify verification code")
-            sys.exit(1)
-
-    return icloud
 
 
 if __name__ == '__main__':
