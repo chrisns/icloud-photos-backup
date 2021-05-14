@@ -17,5 +17,5 @@ requests==2.25.0
 SecretStorage==3.3.1
 six==1.16.0
 tqdm==4.60.0
-tzlocal==2.0.0
+tzlocal==2.1
 urllib3==1.26.4
