@@ -8,7 +8,7 @@ idna==2.10
 jeepney==0.6.0
 keyring==9.3.1
 keyrings.alt==3.2.0
-Nuitka==0.6.15.1
+Nuitka==0.6.15.3
 pycparser==2.20
 pyicloud==0.10.2
 python-dateutil==2.8.1
