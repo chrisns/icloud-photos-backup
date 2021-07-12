@@ -5,7 +5,7 @@ click==7.1.1
 cryptography==3.4.7
 future==0.18.2
 idna==2.10
-jeepney==0.6.0
+jeepney==0.7.0
 keyring==9.3.1
 keyrings.alt==3.2.0
 Nuitka==0.6.16.2
