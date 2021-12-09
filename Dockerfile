@@ -1,4 +1,4 @@
-FROM python:3.9.7-slim as build
+FROM python:3.10.1-slim as build
 
 WORKDIR /app
 COPY requirements.txt ./
