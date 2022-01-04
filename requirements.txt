@@ -13,7 +13,7 @@ pycparser==2.21
 pyicloud==0.10.2
 python-dateutil==2.8.2
 pytz==2021.3
-requests==2.26.0
+requests==2.27.0
 SecretStorage==3.3.1
 six==1.16.0
 tqdm==4.62.3
