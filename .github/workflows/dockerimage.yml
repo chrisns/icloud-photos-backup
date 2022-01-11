@@ -26,7 +26,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - id: docker_meta
-        uses: docker/metadata-action@12528c4f059417f331b29e4e803c045617be4b83 # renovate: tag=v3.1.0
+        uses: docker/metadata-action@e5622373a38e60fb6d795a4421e56882f2d7a681 # renovate: tag=v3.6.2
         with:
           images: |
             ghcr.io/${{ github.repository }}
