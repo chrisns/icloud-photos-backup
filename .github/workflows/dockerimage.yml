@@ -3,43 +3,7 @@ on: [push]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # renovate: tag=v2.4.0
-      - uses: docker/setup-buildx-action@94ab11c41e45d028884a99163086648e898eed25 # renovate: tag=v1.6.0
-      - uses: docker/setup-qemu-action@c308fdd69d26ed66f4506ebd74b180abe5362145 # renovate: tag=v1.1.0
-
-      - name: Login to dockerhub
-        if: github.ref == 'refs/heads/master'
-        uses: docker/login-action@42d299face0c5c43a0487c477f595ac9cf22f1a7 # renovate: tag=v1.12.0
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Login to GitHub
-        if: github.ref == 'refs/heads/master'
-        uses: docker/login-action@42d299face0c5c43a0487c477f595ac9cf22f1a7 # renovate: tag=v1.12.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - id: docker_meta
-        uses: docker/metadata-action@e5622373a38e60fb6d795a4421e56882f2d7a681 # renovate: tag=v3.6.2
-        with:
-          images: |
-            ghcr.io/${{ github.repository }}
-            ${{ github.repository }}
-          flavor: |
-            latest=true
-          tags: |
-            type=sha,format=long
-            type=edge,branch=$repo.default_branch
-      - name: build+push
-        uses: docker/build-push-action@a66e35b9cbcf4ad0ea91ffcaf7bbad63ad9e0229 # renovate: tag=v2.7.0
-        with:
-          platforms: linux/arm64,linux/amd64
-          push: ${{ github.ref == 'refs/heads/master' }}
-          tags: ${{ steps.docker_meta.outputs.tags }}
-          labels: ${{ steps.docker_meta.outputs.labels }}
+    uses: chrisns/repo-config/.github/workflows/dockerbuild.yml@main
+    with:
+      platforms: linux/arm64,linux/amd64
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
