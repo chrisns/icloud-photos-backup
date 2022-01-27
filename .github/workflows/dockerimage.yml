@@ -6,4 +6,5 @@ jobs:
     uses: chrisns/repo-config/.github/workflows/dockerbuild.yml@main
     with:
       platforms: linux/arm64,linux/amd64
+    secrets:
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
