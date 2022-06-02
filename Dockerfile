@@ -1,4 +1,4 @@
-FROM python:3.10.4-slim@sha256:43705a7d3a22c5b954ed4bd8db073698522128cf2aaec07690a34aab59c65066 as build
+FROM python:3.10.4-slim@sha256:8d11b75484e7f0ebb7fb75737f5e513900332305fc9ec0bad7ee9148e059f32b as build
 
 WORKDIR /app
 COPY requirements.txt ./
