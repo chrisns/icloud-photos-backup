@@ -55,10 +55,11 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
               callback=validate_date,
               envvar='TO_DATE',
               metavar='<date>')
+
 def backup(username, password, from_date, to_date):
     icloud = authenticate(username, password)
 
-    album = icloud.photos.albums["All Photos"]
+    album = icloud.photos.all
 
     # sort by asset-date instead of added-date
     album.obj_type = "CPLAssetByAssetDate"
