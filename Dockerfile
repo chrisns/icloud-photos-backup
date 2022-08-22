@@ -1,8 +1,10 @@
 FROM python:3.10.6-slim@sha256:59129c9fdea259c6a9b6d9c615c065c336aca680ee030fc3852211695a21c1cf as build
 
 WORKDIR /app
-COPY requirements.txt ./
-RUN pip install -r requirements.txt
+COPY requirements.txt pyicloud.diff ./
+RUN pip install -r requirements.txt && \
+  pypatch apply pyicloud.diff pyicloud
+
 COPY backup.py ./
 
 ENV LC_ALL=C.UTF-8 LANG=C.UTF-8
