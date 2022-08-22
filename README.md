@@ -6,6 +6,8 @@ Like many others I keep all my family photos in Photos and take comfort that App
 
 However something got me worried, _what if_ I got infected with some ransomware that encrypted or destroyed my photos, from an attack point of view, that'd probably be a pretty lucrative attack.
 
+Or what if the pictures I have of my kids were misclassified by a well intentioned Apple and I lost access to the originals like [this guy](https://news.yahoo.com/dad-took-photos-naked-toddler-142928196.html) did with his google life.
+
 ## Usage
 
 ### Get or renew a login session with 2FA
@@ -26,7 +28,7 @@ docker run \
   -v ${PWD}/backup:/app/backup \
   -v ${PWD}/session:/tmp/pyicloud \
   -e USERNAME="xxx@mac.com" \
-  -e PASSWORD="foo" \
+  -e PASSWORD="foo" \ #doesn't matter what the password is if the session is established
   ghcr.io/chrisns/icloud-photos-backup
 ```
 
