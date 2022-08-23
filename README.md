@@ -1,4 +1,19 @@
 # iCloud Photos backup
+[![Security Scanning](https://github.com/chrisns/icloud-photos-backup/actions/workflows/security.yml/badge.svg)](https://github.com/chrisns/icloud-photos-backup/actions/workflows/security.yml)
+[![Docker Image CI](https://github.com/chrisns/icloud-photos-backup/actions/workflows/dockerimage.yml/badge.svg)](https://github.com/chrisns/icloud-photos-backup/actions/workflows/dockerimage.yml)
+[![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=chrisns_icloud-photos-backup&metric=duplicated_lines_density)](https://sonarcloud.io/summary/new_code?id=chrisns_icloud-photos-backup)
+[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=chrisns_icloud-photos-backup&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=chrisns_icloud-photos-backup)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=chrisns_icloud-photos-backup&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=chrisns_icloud-photos-backup)
+[![Technical Debt](https://sonarcloud.io/api/project_badges/measure?project=chrisns_icloud-photos-backup&metric=sqale_index)](https://sonarcloud.io/summary/new_code?id=chrisns_icloud-photos-backup)
+[![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=chrisns_icloud-photos-backup&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=chrisns_icloud-photos-backup)
+[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=chrisns_icloud-photos-backup&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=chrisns_icloud-photos-backup)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=chrisns_icloud-photos-backup&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=chrisns_icloud-photos-backup)
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=chrisns_icloud-photos-backup&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=chrisns_icloud-photos-backup)
+[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=chrisns_icloud-photos-backup&metric=bugs)](https://sonarcloud.io/summary/new_code?id=chrisns_icloud-photos-backup)
+[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=chrisns_icloud-photos-backup&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=chrisns_icloud-photos-backup)
+[![Known Vulnerabilities](https://snyk.io/test/github/chrisns/icloud-photos-backup/badge.svg)](https://snyk.io/test/github/chrisns/icloud-photos-backup)
+
+
 
 > a tool to backup your photos from iCloud
 
@@ -10,29 +25,42 @@ Or what if the pictures I have of my kids were misclassified by a well intention
 
 ## Usage
 
-### Get or renew a login session with 2FA
+###
 ```bash
+# think of a random number between 10000 and 14000 to get a user id
+export USERID=$(echo $[ $RANDOM % 4000 + 10000 ])
+mkdir -p session keyring photos
+chown -R $USERID session keyring photos
+
+### Get or renew a login session with 2FA
+
 docker run \
+  -u $USERID \
   --rm -ti \
   -v ${PWD}/session:/tmp/pyicloud \
+  -v ${PWD}/keyring:/home/app/.local/share/python_keyring
   -e USERNAME="xxx@mac.com" \
   ghcr.io/chrisns/icloud-photos-backup
-```
 
-### Run
+# If it works this should start downloading photos, but they're only going to a docker volume, not to your host machine to ^C to exit
 
-```bash
 docker run \
   --name photobackup \
+  -u $USERID \
   -d \
-  -v ${PWD}/backup:/app/backup \
+  -v ${PWD}/backup:/app/photos \
+  -v ${PWD}/keyring:/home/app/.local/share/python_keyring
   -v ${PWD}/session:/tmp/pyicloud \
   -e USERNAME="xxx@mac.com" \
-  -e PASSWORD="foo" \ #doesn't matter what the password is if the session is established
   ghcr.io/chrisns/icloud-photos-backup
-```
 
-You can if you're comfortable with it specify your password as an environment too as `PASSWORD` otherwise it'll prompt you to enter it on execution along with a 2FA prompt if you've enabled it - **you have enabled 2FA right?!!**
+# you can follow the logs to see progress, initial backup could take a LONG time (days-weeks)
+docker logs -f photobackup
+
+# you can then maybe add a cron job to do:
+
+docker start -a photobackup
+```
 
 ## But I don't trust you [@chrisns](@chrisns) with my credentials
 

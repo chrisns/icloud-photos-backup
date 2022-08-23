@@ -10,6 +10,8 @@ import pytz
 import os
 from pyicloud.services.photos import PhotoAlbum
 from pyicloud import PyiCloudService
+from pyicloud.utils import store_password_in_keyring
+from pyicloud.exceptions import PyiCloudFailedLoginException, PyiCloudNoStoredPasswordAvailableException
 from tqdm import tqdm
 
 BACKUP_FOLDER = os.path.join(os.getcwd(), 'photos')
@@ -39,12 +41,6 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
               metavar='<username>',
               envvar='USERNAME',
               prompt='iCloud username/email')
-@click.option('--password',
-              help='Your iCloud password',
-              metavar='<password>',
-              envvar='PASSWORD',
-              prompt='iCloud password',
-              hide_input=True)
 @click.option('--from-date',
               help='specifiy a date YYYY-mm-dd to begin downloading images from, leaving it out will result in downloading all images',
               callback=validate_date,
@@ -56,8 +52,8 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
               envvar='TO_DATE',
               metavar='<date>')
 
-def backup(username, password, from_date, to_date):
-    icloud = authenticate(username, password)
+def backup(username, from_date, to_date):
+    icloud = authenticate(username)
 
     album = icloud.photos.all
 
@@ -135,10 +131,16 @@ def backup(username, password, from_date, to_date):
             print(" {0}".format(photo.filename))
 
 
-def authenticate(username, password):
+def authenticate(username):
     """attempt to authenticate user using provided credentials"""
+    try:
+        api = PyiCloudService(username)
+    except (PyiCloudNoStoredPasswordAvailableException, PyiCloudFailedLoginException):
+        import click
+        password = click.prompt('iCloud Password', hide_input=True)
+        store_password_in_keyring(username, password)
+        api = PyiCloudService(username)
 
-    api = PyiCloudService(username, password)
 
     if api.requires_2fa:
         print("Two-factor authentication required.")
