@@ -38,7 +38,7 @@ docker run \
   -u $USERID \
   --rm -ti \
   -v ${PWD}/session:/tmp/pyicloud \
-  -v ${PWD}/keyring:/home/app/.local/share/python_keyring
+  -v ${PWD}/keyring:/home/app/.local/share/python_keyring \
   -e USERNAME="xxx@mac.com" \
   ghcr.io/chrisns/icloud-photos-backup
 
@@ -49,7 +49,7 @@ docker run \
   -u $USERID \
   -d \
   -v ${PWD}/backup:/app/photos \
-  -v ${PWD}/keyring:/home/app/.local/share/python_keyring
+  -v ${PWD}/keyring:/home/app/.local/share/python_keyring \
   -v ${PWD}/session:/tmp/pyicloud \
   -e USERNAME="xxx@mac.com" \
   ghcr.io/chrisns/icloud-photos-backup
