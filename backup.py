@@ -6,6 +6,7 @@ import string
 import unicodedata
 import requests
 from datetime import datetime
+from time import mktime
 import pytz
 import os
 from pyicloud.services.photos import PhotoAlbum
@@ -93,6 +94,11 @@ def backup(username, from_date, to_date):
                             download_bar.update(1024)
                             file.write(chunk)
                     file.close()
+
+                # Preserve the creation date
+                mod_time = mktime(photo.created.timetuple())
+                os.utime(photo.download_path, (mod_time, mod_time))
+
                 download_bar.close()
 
 
