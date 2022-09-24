@@ -122,9 +122,17 @@ def backup(username, from_date, to_date):
         filename = clean_filename(photo.id) + photo.filename.encode('utf-8').decode('ascii', 'ignore')
         photo.download_path = os.path.join(photo.download_dir, filename)
         if os.path.isfile(photo.download_path):
-            #skip when we've already fetched the photo
-            continue
-        
+            # If the script was terminated early previously, then we might have ended up with
+            # an incomplete file. By checking the file size, we at least make sure that
+            # the file is at least the size we expect it to be.
+            stats = os.stat(photo.download_path)
+            if stats.st_size >= photo.size:
+                #skip when we've already fetched the photo
+                continue
+            else:
+                print("Download {0} again, as it seems incomplete based on file size ({1} vs {2})".format(filename, stats.st_size, photo.size))
+                os.remove(photo.download_path)
+
         download_photo(photo)
 
     progress_bar.close()
