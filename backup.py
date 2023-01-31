@@ -6,6 +6,7 @@ import string
 import unicodedata
 import requests
 from datetime import datetime
+from time import mktime
 import pytz
 import os
 from pyicloud.services.photos import PhotoAlbum
@@ -42,20 +43,32 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
               envvar='USERNAME',
               prompt='iCloud username/email')
 @click.option('--from-date',
-              help='specifiy a date YYYY-mm-dd to begin downloading images from, leaving it out will result in downloading all images',
+              help='Specify a date YYYY-mm-dd to begin downloading images from, leaving it out will result in downloading all images',
               callback=validate_date,
               envvar='FROM_DATE',
               metavar='<date>')
 @click.option('--to-date',
-              help='Specifiy a date YYYY-mm-dd to begin downloading images to, leaving it out will result in downloading images up till today',
+              help='Specify a date YYYY-mm-dd to begin downloading images to, leaving it out will result in downloading images up till today',
               callback=validate_date,
               envvar='TO_DATE',
               metavar='<date>')
+@click.option('--max-skips',
+              help='If set, the script will stop early after skipping this many photos because they were already downloaded.',
+              type=click.IntRange(0),
+              envvar='MAX_SKIPS',
+              metavar='<skips>')
+@click.option('--suffix-id/--prefix-id',
+              help='Controls if the photo ID will be prefixed (default) or suffixed.',
+              envvar='SUFFIX_ID',
+              default=False)
 
-def backup(username, from_date, to_date):
+def backup(username, from_date, to_date, max_skips, suffix_id):
     icloud = authenticate(username)
 
     album = icloud.photos.all
+
+    if max_skips is None:
+        max_skips = 0
 
     # sort by asset-date instead of added-date
     album.obj_type = "CPLAssetByAssetDate"
@@ -93,18 +106,26 @@ def backup(username, from_date, to_date):
                             download_bar.update(1024)
                             file.write(chunk)
                     file.close()
+
+                # Preserve the creation date
+                mod_time = mktime(photo.created.timetuple())
+                os.utime(photo.download_path, (mod_time, mod_time))
+
                 download_bar.close()
 
 
         except (requests.exceptions.ConnectionError, socket.timeout):
             failed_photos.append(photo)
 
+    # Keep track of the number of photos skipped in a row, so that we can stop early
+    # if it seems that we've gotten all the new photos.
+    skipped_in_a_row = 0
 
     # before we can rely heavy on the photos are sorted DESC by asset_date we can create these guards.
     for photo in album.photos:
         progress_bar.update()
         if to_date is not None and photo.created.date() > to_date:
-            # skip photos untill photos are older than our 'to_date'
+            # skip photos until photos are older than our 'to_date'
             continue
 
         if from_date is not None and photo.created.date() < from_date:
@@ -113,12 +134,40 @@ def backup(username, from_date, to_date):
 
         date_path = '{:%Y-%m}'.format(photo.created) # store files in folders grouped by year + month.
         photo.download_dir = os.path.join(BACKUP_FOLDER, username, date_path)
-        filename = clean_filename(photo.id) + photo.filename.encode('utf-8').decode('ascii', 'ignore')
+        filename = photo.filename.encode('utf-8').decode('ascii', 'ignore')
+        clean_id = clean_filename(photo.id)
+        if suffix_id:
+            # Find first dot in filename
+            dot_index = filename.find('.')
+            if dot_index == -1:
+                # No dot, so just append the ID
+                filename += '_' + clean_id
+            else:
+                # Insert the ID before the dot
+                filename = filename[:dot_index] + '_' + clean_id + filename[dot_index:]
+        else:
+            filename = clean_id + filename
         photo.download_path = os.path.join(photo.download_dir, filename)
         if os.path.isfile(photo.download_path):
-            #skip when we've already fetched the photo
-            continue
-        
+            # If the script was terminated early previously, then we might have ended up with
+            # an incomplete file. By checking the file size, we at least make sure that
+            # the file is at least the size we expect it to be.
+            stats = os.stat(photo.download_path)
+            if stats.st_size >= photo.size:
+                #skip when we've already fetched the photo
+                skipped_in_a_row += 1
+
+                # Maximum number of skipped photos reached?
+                if max_skips > 0 and skipped_in_a_row >= max_skips:
+                    print("Reached maximum number of consecutive skipped photos, stopping early.")
+                    break
+                # Otherwise, we'll just keep going.
+                continue
+            else:
+                print("Download {0} again, as it seems incomplete based on file size ({1} vs {2})".format(filename, stats.st_size, photo.size))
+                os.remove(photo.download_path)
+
+        skipped_in_a_row = 0
         download_photo(photo)
 
     progress_bar.close()
