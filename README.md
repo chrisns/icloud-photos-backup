@@ -27,15 +27,10 @@ Or what if the pictures I have of my kids were misclassified by a well intention
 
 ###
 ```bash
-# think of a random number between 10000 and 14000 to get a user id
-export USERID=$(echo $[ $RANDOM % 4000 + 10000 ])
 mkdir -p session keyring photos
-chown -R $USERID session keyring photos
-
 ### Get or renew a login session with 2FA
 
 docker run \
-  -u $USERID \
   --rm -ti \
   -v ${PWD}/session:/tmp/pyicloud \
   -v ${PWD}/keyring:/home/app/.local/share/python_keyring \
@@ -46,7 +41,6 @@ docker run \
 
 docker run \
   --name photobackup \
-  -u $USERID \
   -d \
   -v ${PWD}/backup:/app/photos \
   -v ${PWD}/keyring:/home/app/.local/share/python_keyring \
