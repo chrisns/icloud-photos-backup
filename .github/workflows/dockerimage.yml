@@ -3,7 +3,7 @@ on: [push]
 
 jobs:
   build:
-    uses: chrisns/repo-config/.github/workflows/dockerbuild.yml@main
+    uses: chrisns/.github/.github/workflows/dockerbuild.yml@main
     with:
       platforms: linux/arm64,linux/amd64
     secrets:
