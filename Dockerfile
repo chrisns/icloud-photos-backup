@@ -1,4 +1,4 @@
-FROM python:3.11.3-slim@sha256:551c9529e77896518ac5693d7e98ee5e12051d625de450ac2a68da1eae15ec87 as build
+FROM python:3.11.3-slim@sha256:8d5843995bbc78f27d894be5ef78bb08cd1475e4f917c2c91a76a63b62848d9f as build
 
 WORKDIR /app
 COPY requirements.txt pyicloud.diff ./
