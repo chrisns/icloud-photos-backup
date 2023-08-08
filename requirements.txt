@@ -1,4 +1,4 @@
 pyicloud==1.0.0
-tqdm==4.65.0
+tqdm==4.65.1
 pytz==2023.3
 pypatch==1.0.1
