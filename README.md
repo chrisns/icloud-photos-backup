@@ -1,3 +1,6 @@
+# ⚠️ Archived, use [icloud-photos-downloader](https://github.com/icloud-photos-downloader/icloud_photos_downloader) ⚠️
+
+
 # iCloud Photos backup
 [![Security Scanning](https://github.com/chrisns/icloud-photos-backup/actions/workflows/security.yml/badge.svg)](https://github.com/chrisns/icloud-photos-backup/actions/workflows/security.yml)
 [![Docker Image CI](https://github.com/chrisns/icloud-photos-backup/actions/workflows/dockerimage.yml/badge.svg)](https://github.com/chrisns/icloud-photos-backup/actions/workflows/dockerimage.yml)
